@@ -1,10 +1,11 @@
-"""Execution engine with retry, fallback, and streaming support."""
+"""Execution engine with parallel step execution, retry, and streaming."""
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import AsyncGenerator
-from time import perf_counter, sleep
-from typing import Any, Mapping
+from time import perf_counter
+from typing import Any
 
 from anviksha.capabilities.registry import CapabilityRegistry
 from anviksha.config import get_settings
@@ -31,9 +32,8 @@ class ExecutionEngine:
         outputs: dict[str, object] = {}
         confidence = 1.0
         start = perf_counter()
-        for step in plan.steps:
-            result = await self._execute_step(plan.execution_id, step, outputs)
-            outputs[step.id] = result.output
+        async for step_id, result in self._execute_plan(plan.execution_id, plan.steps, outputs):
+            outputs[step_id] = result.output
             confidence = min(confidence, result.confidence)
         self._events.emit(
             RuntimeEvent(
@@ -53,10 +53,9 @@ class ExecutionEngine:
         self._state.record(StateTransition(plan.execution_id, ExecutionStatus.RUNNING))
         outputs: dict[str, object] = {}
         start = perf_counter()
-        for step in plan.steps:
-            result = await self._execute_step(plan.execution_id, step, outputs)
-            outputs[step.id] = result.output
-            yield (step.id, result.output)
+        async for step_id, result in self._execute_plan(plan.execution_id, plan.steps, outputs):
+            outputs[step_id] = result.output
+            yield (step_id, result.output)
         self._events.emit(
             RuntimeEvent(
                 "execution.completed",
@@ -64,6 +63,38 @@ class ExecutionEngine:
                 attributes={"duration_ms": int((perf_counter() - start) * 1000)},
             )
         )
+
+    async def _execute_plan(
+        self,
+        execution_id: str,
+        steps: Any,
+        outputs: dict[str, object],
+    ) -> AsyncGenerator[tuple[str, CapabilityResult], None]:
+        step_map = {s.id: s for s in steps}
+        resolved: set[str] = set()
+        pending: set[str] = set(step_map.keys())
+
+        while pending:
+            ready = [
+                s for s in pending
+                if all(dep in resolved for dep in step_map[s].depends_on)
+            ]
+            if not ready:
+                raise PlanningError(
+                    f"circular or unresolvable dependency in steps: {pending}"
+                )
+            tasks = {
+                step_id: self._execute_step(
+                    execution_id, step_map[step_id], outputs
+                )
+                for step_id in ready
+            }
+            for step_id, coro in tasks.items():
+                result = await coro
+                resolved.add(step_id)
+                pending.discard(step_id)
+                outputs[step_id] = result.output
+                yield step_id, result
 
     def _validate_plan(self, plan: ExecutionPlan) -> None:
         if not plan.steps:

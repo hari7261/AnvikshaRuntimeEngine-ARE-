@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anviksha-runtime-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "Anviksha Runtime Engine: adaptive AI execution runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,9 +18,16 @@ classifiers = [
 dependencies = ["httpx>=0.27"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "pytest-cov>=4.0",
+  "hypothesis>=6.100",
+]
 otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25"]
-all = ["anviksha-runtime-engine[dev,otel]"]
+lint = ["ruff>=0.3", "mypy>=1.8"]
+docs = ["mkdocs>=1.5", "mkdocstrings[python]>=0.24"]
+all = ["anviksha-runtime-engine[dev,otel,lint,docs]"]
 
 [project.entry-points."anviksha.plugins"]
 calculator = "anviksha.capabilities.builtins:CalculatorCapability"
@@ -30,6 +37,34 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["src/anviksha"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING",
+  "def __repr__",
+  "raise NotImplementedError",
+]
+fail_under = 80
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+warn_unreachable = true
+no_implicit_optional = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/anviksha"]

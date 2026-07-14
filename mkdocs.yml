@@ -1,0 +1,44 @@
+site_name: Anviksha Runtime Engine
+site_description: Adaptive AI execution runtime
+repo_url: https://github.com/hari7261/AnvikshaRuntimeEngine_ARE
+site_author: Anviksha Core Team
+copyright: MIT License
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      default:
+        handlers:
+          python:
+            paths: [src]
+            options:
+              show_source: true
+              show_bases: true
+              show_inheritance_diagram: false
+              docstring_section_style: list
+              show_if_no_docstring: true
+
+nav:
+  - Home: index.md
+  - Guide:
+    - Quickstart: guide/quickstart.md
+    - Configuration: guide/configuration.md
+  - API Reference:
+    - Runtime SDK: api/runtime.md
+    - Capabilities: api/capabilities.md
+    - Types: api/types.md
+    - Exceptions: api/exceptions.md
+  - Development:
+    - Architecture: dev/architecture.md
+    - RFCs: dev/rfcs.md
+    - Contributing: dev/contributing.md

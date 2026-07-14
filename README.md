@@ -9,27 +9,32 @@ Anviksha Runtime Engine is an adaptive AI execution runtime. Applications descri
 ## Quick Start
 
 ```python
-# 1. Configure LLM (required for non-math intents)
-#    export ANVIKSHA_LLM_API_BASE=https://api.openai.com/v1
-#    export ANVIKSHA_LLM_API_KEY=sk-...
-#    export ANVIKSHA_LLM_MODEL=gpt-4o-mini
+from anviksha import Runtime, RuntimeConfig
 
-# 2. Use the runtime
-from anviksha import Runtime
+# Offline mode — no LLM required
+runtime = Runtime(config=RuntimeConfig(register_llm=False))
 
-runtime = Runtime()
-
-# Math → calculator (deterministic, no LLM)
+# Math → calculator (deterministic)
 response = runtime.execute("2 + 3 * 4")
-print(response.output)      # 14.0
+print(response.output)        # 14.0
 
-# Non-math → LLM (requires env vars above)
-response = runtime.execute("What is Python?")
+# Search → retrieval (BM25)
+response = runtime.execute("search for python runtime")
+print(response.output)        # ranked results
+
+# Python evaluation (safe AST)
+response = runtime.execute("evaluate sum(range(100))")
+print(response.output)        # 4950
+
+# Async
+import asyncio
+response = asyncio.run(runtime.aexecute("2 ** 10"))
+print(response.output)        # 1024
 
 # Inspect execution
-print(response.status)       # succeeded
-print(response.diagnostics)  # planner decisions
-print(response.metadata)     # timeline, events, cost
+print(response.status)        # succeeded
+print(response.diagnostics)   # planner decisions
+print(response.metadata)      # timeline, events, cost
 ```
 
 ---
@@ -60,7 +65,7 @@ Application
     ▼
 ┌─────────────────────────────────────┐
 │      Execution Engine               │
-│  executes steps, retries on failure │
+│  parallel step execution + retry    │
 └─────────────────────────────────────┘
     │                           │
     ▼                           ▼
@@ -80,7 +85,13 @@ Application
 |---|---|
 | Intent classification (9 types) | ✅ |
 | Safe AST-based calculator | ✅ |
+| Text retrieval (BM25) | ✅ |
+| Session memory (key-value) | ✅ |
+| Safe Python evaluation | ✅ |
+| HTTP fetch capability | ✅ |
+| Sandboxed filesystem | ✅ |
 | HTTP LLM capability (OpenAI-compatible) | ✅ |
+| Parallel step execution | ✅ |
 | Retry with exponential backoff | ✅ |
 | Plan validation (dependencies, capability existence) | ✅ |
 | Minimum confidence policy | ✅ |
@@ -95,19 +106,41 @@ Application
 
 ## Configuration
 
-All configuration is via environment variables. See [Docs/RELEASE-v1.0.md](Docs/RELEASE-v1.0.md) for the full reference.
+| Variable | Default | Description |
+|---|---|---|
+| `ANVIKSHA_LLM_API_BASE` | — | OpenAI-compatible API base URL |
+| `ANVIKSHA_LLM_API_KEY` | — | API key |
+| `ANVIKSHA_LLM_MODEL` | — | Model name |
+| `ANVIKSHA_MAX_RETRIES` | `3` | Max capability retry attempts |
+| `ANVIKSHA_RETRY_BASE_DELAY_S` | `1.0` | Initial retry backoff |
+| `ANVIKSHA_RETRY_MAX_DELAY_S` | `30.0` | Maximum retry delay |
+| `ANVIKSHA_STATE_DB_PATH` | — | SQLite path for persistence |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OpenTelemetry endpoint |
 
 ---
 
-## Development
+## Performance
+
+```
+Benchmark                     Ops/sec
+─────────────────────────────────────
+Calculator throughput          4,727/s
+Python evaluation             26,068/s
+Memory operations            749,597/s
+Retrieval (1000 docs)            155/s
+p50 latency                     0.13ms
+```
+
+---
+
+## Testing
+
+96 tests (49 original + 47 new Phase 2) — unit, integration, concurrency, property-based.
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest -v
-python -m compileall -q src tests
+pytest tests/ -v --cov
 ```
-
-Requires Python 3.12+.
 
 ---
 
@@ -116,24 +149,29 @@ Requires Python 3.12+.
 ```
 src/anviksha/
 ├── __init__.py
-├── config.py             # Env-based RuntimeSettings
-├── exceptions.py         # Exception hierarchy
-├── types.py              # Immutable data models
-├── capabilities/         # Capability protocol, registry, calculator, LLM
-├── execution/            # ExecutionEngine with retry + streaming
-├── observability/        # Event sink, OpenTelemetry export
-├── planner/              # RuleBasedPlanner (intent classification)
-├── plugins/              # Plugin protocol, entry-point discovery
-├── policy/               # PolicyEngine, MinimumConfidencePolicy
-├── sdk/                  # Runtime — the primary developer API
-└── state/                # In-memory + SQLite state manager
+├── config.py                  # Env-based RuntimeSettings
+├── exceptions.py              # Exception hierarchy
+├── types.py                   # Immutable data models
+├── capabilities/
+│   ├── base.py                # Capability protocol & metadata
+│   ├── registry.py            # Filtering/sorting registry
+│   ├── builtins.py            # AST calculator
+│   ├── llm.py                 # HTTP LLM capability
+│   ├── retrieval.py           # BM25 text retrieval
+│   ├── memory.py              # In-memory key-value store
+│   ├── python_exec.py         # Safe Python evaluation
+│   ├── http_client.py         # HTTP fetch capability
+│   └── filesystem.py          # Sandboxed file I/O
+├── execution/engine.py        # Parallel execution + retry
+├── observability/events.py    # Structured event sink
+├── planner/default.py         # Rule-based intent classifier
+├── plugins/sdk.py             # Plugin protocol & metadata
+├── plugins/discovery.py       # Entry-point auto-discovery
+├── policy/engine.py           # Policy engine + min confidence
+├── sdk/runtime.py             # Public Runtime API
+└── state/manager.py           # Immutable state timeline
+    state/persistence.py       # SQLite persistent state
 ```
-
----
-
-## Testing
-
-49 tests covering all components — runtime E2E, planner, registry, calculator, LLM config, state, policies, plugins, execution, validation, and public API.
 
 ---
 

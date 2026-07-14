@@ -1,9 +1,4 @@
-"""Public Python SDK runtime entry point with full production wiring.
-
-Applications create a Runtime, configure it explicitly, and call
-execute/aexecute/astream. No silent fallbacks: every configuration choice
-must be intentional.
-"""
+"""Public Python SDK runtime entry point with full production wiring."""
 from __future__ import annotations
 
 import asyncio
@@ -12,8 +7,13 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from anviksha.capabilities.builtins import CalculatorCapability
+from anviksha.capabilities.filesystem import FilesystemCapability
+from anviksha.capabilities.http_client import HTTPCapability
 from anviksha.capabilities.llm import LLMCapability
+from anviksha.capabilities.memory import MemoryCapability
+from anviksha.capabilities.python_exec import PythonCapability
 from anviksha.capabilities.registry import CapabilityRegistry
+from anviksha.capabilities.retrieval import RetrievalCapability
 from anviksha.config import get_settings
 from anviksha.exceptions import ConfigurationError
 from anviksha.execution.engine import ExecutionEngine
@@ -53,10 +53,21 @@ class Runtime:
         self.registry = registry or CapabilityRegistry()
         settings = get_settings()
 
+        registered_ids = {c.metadata.id for c in self.registry.all()}
+
         if self.config.register_builtins:
-            calculator = CalculatorCapability()
-            if calculator.metadata.id not in {c.metadata.id for c in self.registry.all()}:
-                self.registry.register(calculator)
+            builtins = [
+                CalculatorCapability(),
+                RetrievalCapability(),
+                MemoryCapability(),
+                PythonCapability(),
+                HTTPCapability(),
+                FilesystemCapability(),
+            ]
+            for cap in builtins:
+                if cap.metadata.id not in registered_ids:
+                    self.registry.register(cap)
+                    registered_ids.add(cap.metadata.id)
 
         if self.config.register_llm:
             if not settings.llm_configured:
@@ -69,19 +80,21 @@ class Runtime:
                     "Or set RuntimeConfig(register_llm=False) to run without an LLM."
                 )
             llm = LLMCapability()
-            if llm.metadata.id not in {c.metadata.id for c in self.registry.all()}:
+            if llm.metadata.id not in registered_ids:
                 self.registry.register(llm)
 
         if self.config.auto_discover_plugins:
             for cap in discover_capabilities():
-                if cap.metadata.id not in {c.metadata.id for c in self.registry.all()}:
+                if cap.metadata.id not in registered_ids:
                     self.registry.register(cap)
+                    registered_ids.add(cap.metadata.id)
 
         if plugins:
             for plugin in plugins:
                 for cap in plugin.capabilities():
-                    if cap.metadata.id not in {c.metadata.id for c in self.registry.all()}:
+                    if cap.metadata.id not in registered_ids:
                         self.registry.register(cap)
+                        registered_ids.add(cap.metadata.id)
 
         if self.config.enable_persistent_state:
             if not settings.state_persistence_enabled:

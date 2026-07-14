@@ -1,10 +1,4 @@
-"""Deterministic RFC-compliant planner.
-
-The planner classifies request intent and selects the most appropriate
-capability. Every decision is recorded in diagnostics. No silent fallbacks:
-if no capability satisfies the intent, PlanningError is raised with the
-exact reason.
-"""
+"""Deterministic RFC-compliant planner with multi-step plan support."""
 from __future__ import annotations
 
 import re
@@ -67,6 +61,8 @@ class RuleBasedPlanner:
             return Intent.CLASSIFICATION
         if "search" in text or "retrieve" in text:
             return Intent.RETRIEVAL
+        if "evaluate" in text or "python" in text:
+            return Intent.TOOL_INVOCATION
         if text.endswith("?"):
             return Intent.QUESTION_ANSWERING
         return Intent.GENERAL

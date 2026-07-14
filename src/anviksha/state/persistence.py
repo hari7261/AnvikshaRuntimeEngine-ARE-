@@ -5,6 +5,7 @@ import json
 import sqlite3
 import threading
 from pathlib import Path
+from typing import cast
 
 from anviksha.state.manager import StateManager, StateTransition
 from anviksha.types import ExecutionStatus
@@ -27,7 +28,7 @@ class PersistentStateManager(StateManager):
             self._local.conn.row_factory = sqlite3.Row
             self._local.conn.execute("PRAGMA journal_mode=WAL")
             self._local.conn.execute("PRAGMA synchronous=NORMAL")
-        return self._local.conn
+        return cast(sqlite3.Connection, self._local.conn)
 
     def _init_db(self) -> None:
         path = Path(self._db_path)

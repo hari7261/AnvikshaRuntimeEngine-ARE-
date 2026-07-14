@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import ast
 import operator
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import Any, Final
 
 from anviksha.capabilities.base import CapabilityMetadata
 from anviksha.types import CapabilityKind, CapabilityResult, Intent
@@ -23,7 +23,7 @@ class CalculatorCapability:
         True,
         True,
     )
-    _ops = {
+    _ops: Final[dict[type, Callable[..., Any]]] = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
         ast.Mult: operator.mul,
@@ -56,11 +56,13 @@ class CalculatorCapability:
         if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
             return float(node.value)
         if isinstance(node, ast.BinOp) and type(node.op) in self._ops:
-            return self._ops[type(node.op)](
+            result = self._ops[type(node.op)](
                 self._eval(node.left), self._eval(node.right)
             )
+            return float(result) if result is not None else 0.0
         if isinstance(node, ast.UnaryOp) and type(node.op) in self._ops:
-            return self._ops[type(node.op)](self._eval(node.operand))
+            result = self._ops[type(node.op)](self._eval(node.operand))
+            return float(result) if result is not None else 0.0
         raise ValueError(
             f"unsupported expression: {ast.dump(node)}"
         )

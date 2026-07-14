@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from time import perf_counter
 from typing import Any
 
@@ -92,12 +92,13 @@ class ExecutionEngine:
                 *tasks.values(), return_exceptions=True
             )
             for step_id, result in zip(tasks.keys(), results, strict=True):
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     raise result
+                cap_result: CapabilityResult = result
                 resolved.add(step_id)
                 pending.discard(step_id)
-                outputs[step_id] = result.output
-                yield step_id, result
+                outputs[step_id] = cap_result.output
+                yield step_id, cap_result
 
     def _validate_plan(self, plan: ExecutionPlan) -> None:
         if not plan.steps:
@@ -150,7 +151,7 @@ class ExecutionEngine:
 
     async def _run_with_retry(
         self,
-        factory: Any,
+        factory: Callable[[], Coroutine[Any, Any, CapabilityResult]],
         execution_id: str,
         step: Any,
     ) -> CapabilityResult:

@@ -36,11 +36,11 @@ class MemoryCapability:
                 metadata={"action": "set", "key": key},
             )
         if action == "get":
-            value = self._store.get(key)
-            if value is None:
+            stored = self._store.get(key)
+            if stored is None:
                 raise CapabilityError(f"key '{key}' not found in memory")
             return CapabilityResult(
-                output=value, confidence=1.0,
+                output=stored, confidence=1.0,
                 metadata={"action": "get", "key": key},
             )
         if action == "delete":

@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from anviksha.capabilities import Capability
 from anviksha.capabilities.builtins import CalculatorCapability
 from anviksha.capabilities.filesystem import FilesystemCapability
 from anviksha.capabilities.http_client import HTTPCapability
@@ -56,14 +57,14 @@ class Runtime:
         registered_ids = {c.metadata.id for c in self.registry.all()}
 
         if self.config.register_builtins:
-            builtins = [
+            builtins: tuple[Capability, ...] = (
                 CalculatorCapability(),
                 RetrievalCapability(),
                 MemoryCapability(),
                 PythonCapability(),
                 HTTPCapability(),
                 FilesystemCapability(),
-            ]
+            )
             for cap in builtins:
                 if cap.metadata.id not in registered_ids:
                     self.registry.register(cap)

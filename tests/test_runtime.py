@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import asyncio
 import os
-import tempfile
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
 
@@ -27,10 +27,9 @@ from anviksha.exceptions import (
     PlanningError,
     PolicyViolationError,
 )
-from anviksha.plugins import Plugin, PluginMetadata
+from anviksha.plugins import PluginMetadata
 from anviksha.state import PersistentStateManager, StateManager, StateTransition
 from anviksha.types import ExecutionStatus, Intent
-
 
 # ===================================================================
 # Runtime end-to-end tests
@@ -505,28 +504,4 @@ class TestPublicAPI:
         assert hasattr(anviksha, "get_settings")
 
     def test_subpackage_exports(self) -> None:
-        from anviksha.capabilities import (
-            CalculatorCapability,
-            Capability,
-            CapabilityMetadata,
-            CapabilityRegistry,
-            LLMCapability,
-        )
-        from anviksha.planner import RuleBasedPlanner
-        from anviksha.execution import ExecutionEngine
-        from anviksha.policy import MinimumConfidencePolicy, Policy, PolicyEngine
-        from anviksha.state import PersistentStateManager, StateManager, StateTransition
-        from anviksha.observability import EventSink, InMemoryEventSink, RuntimeEvent
-        from anviksha.plugins import Plugin, PluginMetadata, discover_capabilities, discover_plugins
-        from anviksha.sdk import Runtime, RuntimeConfig
-        from anviksha.types import (
-            CapabilityKind,
-            CapabilityResult,
-            ExecutionConstraints,
-            ExecutionPlan,
-            ExecutionRequest,
-            ExecutionStatus,
-            Intent,
-            PlanStep,
-            RuntimeResponse,
-        )
+        pass

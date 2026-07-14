@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import ast
 import math
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from anviksha.capabilities.base import CapabilityMetadata
 from anviksha.types import CapabilityKind, CapabilityResult, Intent
@@ -30,15 +31,14 @@ class PythonCapability:
         "round": round, "sorted": sorted, "str": str,
         "sum": sum, "tuple": tuple, "type": type, "zip": zip,
         "True": True, "False": False, "None": None,
-        "math": math, "abs": abs, "hex": hex, "bin": bin,
+        "math": math, "hex": hex, "bin": bin,
         "oct": oct, "ord": ord, "chr": chr, "reversed": reversed,
     }
 
     _UNSAFE_NAMES: frozenset[str] = frozenset({
         "__import__", "exec", "eval", "compile", "open",
         "__builtins__", "globals", "locals", "vars",
-        "getattr", "setattr", "delattr", "__import__",
-        "breakpoint", "input", "print",
+        "getattr", "setattr", "delattr", "breakpoint", "input", "print",
     })
 
     async def execute(self, arguments: Mapping[str, Any]) -> CapabilityResult:
@@ -81,8 +81,8 @@ class PythonCapability:
                         raise ValueError(
                             f"call to unsafe attribute: {attr}"
                         )
-            if isinstance(node, (ast.Import, ast.ImportFrom, ast.ClassDef,
-                                 ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            if isinstance(node, ast.Import | ast.ImportFrom | ast.ClassDef
+                          | ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
                 raise ValueError(
                     f"unsafe construct not allowed: {type(node).__name__}"
                 )

@@ -5,13 +5,11 @@ import asyncio
 from typing import Any
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from hypothesis import given, strategies as st
-
-from anviksha import Runtime, RuntimeConfig
 from anviksha.capabilities import CalculatorCapability, CapabilityRegistry
 from anviksha.capabilities.base import CapabilityMetadata, CapabilityResult
-from anviksha.exceptions import PlanningError
 from anviksha.types import (
     CapabilityKind,
     ExecutionConstraints,

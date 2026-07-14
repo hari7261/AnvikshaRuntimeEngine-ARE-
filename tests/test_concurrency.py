@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from anviksha import Runtime, RuntimeConfig
-from anviksha.exceptions import CapabilityError, PlanningError
+from anviksha.exceptions import PlanningError
 
 
 class TestConcurrentExecution:

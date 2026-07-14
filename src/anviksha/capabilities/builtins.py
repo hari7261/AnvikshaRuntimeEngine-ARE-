@@ -1,8 +1,11 @@
 """Provider-free built-in deterministic capabilities."""
 from __future__ import annotations
+
 import ast
 import operator
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
+
 from anviksha.capabilities.base import CapabilityMetadata
 from anviksha.types import CapabilityKind, CapabilityResult, Intent
 

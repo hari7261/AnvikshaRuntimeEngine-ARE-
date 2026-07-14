@@ -14,7 +14,7 @@ try:
 except ImportError:
     _OTEL_AVAILABLE = False
 
-from anviksha.observability.events import EventSink, RuntimeEvent
+from anviksha.observability.events import RuntimeEvent
 
 
 class OTelEventSink:
@@ -45,6 +45,6 @@ class OTelEventSink:
 
 
 def _serialize_attr(value: Any) -> str:
-    if isinstance(value, (str, int, float, bool)):
+    if isinstance(value, str | int | float | bool):
         return str(value)
     return str(value)

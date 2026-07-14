@@ -1,8 +1,12 @@
 """Capability contracts used by planner and executor."""
 from __future__ import annotations
+
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
+
 from anviksha.types import CapabilityKind, CapabilityResult, Intent
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityMetadata:

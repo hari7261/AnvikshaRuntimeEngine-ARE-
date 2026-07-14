@@ -1,8 +1,10 @@
 """Centralized structured telemetry primitives."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from time import time
 from typing import Any, Protocol
+
 
 @dataclass(frozen=True, slots=True)
 class RuntimeEvent:

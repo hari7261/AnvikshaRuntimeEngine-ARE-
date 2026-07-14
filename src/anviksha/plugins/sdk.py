@@ -1,8 +1,11 @@
 """Minimal local plugin SDK."""
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Protocol
+
 from anviksha.capabilities.base import Capability
+
 
 @dataclass(frozen=True, slots=True)
 class PluginMetadata:

@@ -1,8 +1,9 @@
 """Filesystem read/write capability with path sandboxing."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from anviksha.capabilities.base import CapabilityMetadata
 from anviksha.exceptions import CapabilityError

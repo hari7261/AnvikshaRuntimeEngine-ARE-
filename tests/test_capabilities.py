@@ -4,21 +4,18 @@ from __future__ import annotations
 import asyncio
 import os
 import tempfile
-from typing import Any, Mapping
+from contextlib import suppress
 
 import pytest
 
 from anviksha.capabilities import (
     CalculatorCapability,
-    Capability,
-    CapabilityMetadata,
     FilesystemCapability,
     HTTPCapability,
     MemoryCapability,
     PythonCapability,
     RetrievalCapability,
 )
-from anviksha.capabilities.base import CapabilityResult
 from anviksha.exceptions import CapabilityError
 from anviksha.types import CapabilityKind, Intent
 
@@ -278,10 +275,8 @@ class TestMemoryConcurrency:
 
         async def reader(key: str) -> None:
             for _ in range(10):
-                try:
+                with suppress(CapabilityError):
                     await cap.execute({"action": "get", "key": key})
-                except CapabilityError:
-                    pass
 
         await asyncio.gather(
             writer("k1", "v1"),

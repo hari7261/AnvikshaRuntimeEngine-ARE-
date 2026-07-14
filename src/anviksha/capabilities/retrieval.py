@@ -4,7 +4,8 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from anviksha.capabilities.base import CapabilityMetadata
 from anviksha.types import CapabilityKind, CapabilityResult, Intent

@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from anviksha.capabilities.builtins import CalculatorCapability
 from anviksha.capabilities.filesystem import FilesystemCapability

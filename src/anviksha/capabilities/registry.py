@@ -4,6 +4,7 @@ Every capability must be explicitly registered. The registry never silently
 ignores registration requests — duplicate IDs raise ConfigurationError.
 """
 from __future__ import annotations
+
 from anviksha.capabilities.base import Capability
 from anviksha.exceptions import ConfigurationError, PlanningError
 from anviksha.types import ExecutionConstraints, Intent
@@ -30,7 +31,7 @@ class CapabilityRegistry:
             raise PlanningError(
                 f"capability '{capability_id}' is not registered. "
                 f"Registered capabilities: {registered}"
-            )
+            ) from None
 
     def find(
         self, intent: Intent, constraints: ExecutionConstraints

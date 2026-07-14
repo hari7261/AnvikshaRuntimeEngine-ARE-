@@ -5,7 +5,6 @@ import json
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Any
 
 from anviksha.state.manager import StateManager, StateTransition
 from anviksha.types import ExecutionStatus

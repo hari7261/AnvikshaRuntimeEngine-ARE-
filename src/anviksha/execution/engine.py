@@ -91,7 +91,7 @@ class ExecutionEngine:
             results = await asyncio.gather(
                 *tasks.values(), return_exceptions=True
             )
-            for step_id, result in zip(tasks.keys(), results):
+            for step_id, result in zip(tasks.keys(), results, strict=True):
                 if isinstance(result, Exception):
                     raise result
                 resolved.add(step_id)

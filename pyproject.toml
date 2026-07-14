@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "anviksha-runtime-engine"
+name = "anviksha"
 version = "0.2.0"
 description = "Anviksha Runtime Engine: adaptive AI execution runtime"
 readme = "README.md"
@@ -27,7 +27,7 @@ dev = [
 otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25"]
 lint = ["ruff>=0.3", "mypy>=1.8"]
 docs = ["mkdocs>=1.5", "mkdocstrings[python]>=0.24"]
-all = ["anviksha-runtime-engine[dev,otel,lint,docs]"]
+all = ["anviksha[dev,otel,lint,docs]"]
 
 [project.entry-points."anviksha.plugins"]
 calculator = "anviksha.capabilities.builtins:CalculatorCapability"

@@ -24,7 +24,7 @@ class OTelEventSink:
         if not _OTEL_AVAILABLE:
             raise RuntimeError(
                 "OpenTelemetry packages not installed. "
-                "Install with: pip install anviksha-runtime-engine[otel]"
+                "Install with: pip install anviksha[otel]"
             )
         resource = Resource.create({"service.name": service_name})
         provider = TracerProvider(resource=resource)

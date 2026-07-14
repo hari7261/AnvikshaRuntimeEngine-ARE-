@@ -96,7 +96,7 @@ src/anviksha/
 - **Structured events** — every planning, execution, and policy decision emits typed `RuntimeEvent`
 - **State timeline** — immutable `StateTransition` log per execution
 - **Trace metadata** — attachable to every response
-- **OpenTelemetry export** — optional OTLP span export (`pip install anviksha-runtime-engine[otel]`)
+- **OpenTelemetry export** — optional OTLP span export (`pip install anviksha[otel]`)
 
 ### Plugin System
 - **Plugin protocol** — standard interface for adding capabilities

@@ -36,5 +36,5 @@ print(response.output)  # 4950
 ## Installation
 
 ```bash
-pip install anviksha-runtime-engine
+pip install anviksha
 ```

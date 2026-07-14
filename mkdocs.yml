@@ -18,16 +18,15 @@ theme:
 plugins:
   - search
   - mkdocstrings:
-      default:
-        handlers:
-          python:
-            paths: [src]
-            options:
-              show_source: true
-              show_bases: true
-              show_inheritance_diagram: false
-              docstring_section_style: list
-              show_if_no_docstring: true
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_bases: true
+            show_inheritance_diagram: false
+            docstring_section_style: list
+            show_if_no_docstring: true
 
 nav:
   - Home: index.md

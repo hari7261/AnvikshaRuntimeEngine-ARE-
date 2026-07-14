@@ -3,6 +3,7 @@ site_description: Adaptive AI execution runtime
 repo_url: https://github.com/hari7261/AnvikshaRuntimeEngine_ARE
 site_author: Anviksha Core Team
 copyright: MIT License
+docs_dir: Docs
 
 theme:
   name: material

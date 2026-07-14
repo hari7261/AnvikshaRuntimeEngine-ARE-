@@ -72,6 +72,46 @@ class TestConcurrentExecution:
 
         asyncio.run(run_mixed())
 
+    def test_parallel_steps_run_concurrently(self) -> None:
+        from anviksha.capabilities.base import CapabilityMetadata, CapabilityResult
+        from anviksha.capabilities.registry import CapabilityRegistry
+        from anviksha.execution.engine import ExecutionEngine
+        from anviksha.observability.events import InMemoryEventSink
+        from anviksha.state.manager import StateManager
+        from anviksha.types import CapabilityKind, ExecutionPlan, Intent, PlanStep
+
+        delay = 0.2
+
+        class SlowCap:
+            metadata = CapabilityMetadata(
+                id="test.slow", name="Slow", kind=CapabilityKind.TOOL,
+                supported_intents=frozenset({Intent.GENERAL}),
+                deterministic=True,
+            )
+            async def execute(self, arguments: Any) -> CapabilityResult:
+                await asyncio.sleep(delay)
+                return CapabilityResult(output="done", confidence=1.0)
+
+        registry = CapabilityRegistry()
+        registry.register(SlowCap())
+        engine = ExecutionEngine(registry, StateManager(), InMemoryEventSink())
+        plan = ExecutionPlan(
+            "p1", Intent.GENERAL,
+            (
+                PlanStep("s1", "test.slow", Intent.GENERAL, {}),
+                PlanStep("s2", "test.slow", Intent.GENERAL, {}),
+                PlanStep("s3", "test.slow", Intent.GENERAL, {}),
+            ),
+        )
+
+        async def run() -> float:
+            start = asyncio.get_event_loop().time()
+            await engine.execute(plan)
+            return asyncio.get_event_loop().time() - start
+
+        elapsed = asyncio.run(run())
+        assert elapsed < delay * 2, f"took {elapsed:.2f}s, expected < {delay*2:.2f}s (parallel)"
+
     def test_nonexistent_intent_raises_planning_error(self) -> None:
         r = self._make_runtime()
 

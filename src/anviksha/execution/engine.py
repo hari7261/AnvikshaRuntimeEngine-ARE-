@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 from collections.abc import AsyncGenerator
 from time import perf_counter
 from typing import Any
@@ -89,8 +88,12 @@ class ExecutionEngine:
                 )
                 for step_id in ready
             }
-            for step_id, coro in tasks.items():
-                result = await coro
+            results = await asyncio.gather(
+                *tasks.values(), return_exceptions=True
+            )
+            for step_id, result in zip(tasks.keys(), results):
+                if isinstance(result, Exception):
+                    raise result
                 resolved.add(step_id)
                 pending.discard(step_id)
                 outputs[step_id] = result.output

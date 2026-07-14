@@ -42,3 +42,4 @@ nav:
     - Architecture: dev/architecture.md
     - RFCs: dev/rfcs.md
     - Contributing: dev/contributing.md
+    - Changelog: ../CHANGELOG.md

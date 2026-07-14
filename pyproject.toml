@@ -26,7 +26,7 @@ dev = [
 ]
 otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25"]
 lint = ["ruff>=0.3", "mypy>=1.8"]
-docs = ["mkdocs>=1.5", "mkdocstrings[python]>=0.24"]
+docs = ["mkdocs>=1.5", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
 all = ["anviksha[dev,otel,lint,docs]"]
 
 [project.entry-points."anviksha.plugins"]

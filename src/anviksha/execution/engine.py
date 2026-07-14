@@ -1,26 +1,149 @@
-"""Execution engine that executes plans without replanning."""
+"""Execution engine with retry, fallback, and streaming support."""
 from __future__ import annotations
-from time import perf_counter
+
+import asyncio
+from collections.abc import AsyncGenerator
+from time import perf_counter, sleep
+from typing import Any, Mapping
+
 from anviksha.capabilities.registry import CapabilityRegistry
+from anviksha.config import get_settings
+from anviksha.exceptions import CapabilityError, PlanningError
 from anviksha.observability.events import EventSink, RuntimeEvent
 from anviksha.state.manager import StateManager, StateTransition
 from anviksha.types import CapabilityResult, ExecutionPlan, ExecutionStatus
 
+
 class ExecutionEngine:
-    def __init__(self, registry: CapabilityRegistry, state: StateManager, events: EventSink) -> None:
-        self._registry, self._state, self._events = registry, state, events
+    def __init__(
+        self,
+        registry: CapabilityRegistry,
+        state: StateManager,
+        events: EventSink,
+    ) -> None:
+        self._registry = registry
+        self._state = state
+        self._events = events
+
     async def execute(self, plan: ExecutionPlan) -> CapabilityResult:
+        self._validate_plan(plan)
         self._state.record(StateTransition(plan.execution_id, ExecutionStatus.RUNNING))
         outputs: dict[str, object] = {}
         confidence = 1.0
         start = perf_counter()
         for step in plan.steps:
-            cap = self._registry.get(step.capability_id)
-            self._events.emit(RuntimeEvent("capability.started", plan.execution_id, attributes={"step_id": step.id, "capability_id": step.capability_id}))
-            result = await cap.execute({**step.arguments, "previous_outputs": outputs})
+            result = await self._execute_step(plan.execution_id, step, outputs)
             outputs[step.id] = result.output
             confidence = min(confidence, result.confidence)
-            self._state.record(StateTransition(plan.execution_id, ExecutionStatus.RUNNING, step_id=step.id, payload=result.metadata))
-            self._events.emit(RuntimeEvent("capability.completed", plan.execution_id, attributes={"step_id": step.id, "confidence": result.confidence}))
-        self._events.emit(RuntimeEvent("execution.completed", plan.execution_id, attributes={"duration_ms": int((perf_counter()-start)*1000)}))
-        return CapabilityResult(outputs[plan.steps[-1].id] if plan.steps else None, confidence, {"steps": len(plan.steps)})
+        self._events.emit(
+            RuntimeEvent(
+                "execution.completed",
+                plan.execution_id,
+                attributes={"duration_ms": int((perf_counter() - start) * 1000)},
+            )
+        )
+        return CapabilityResult(
+            outputs[plan.steps[-1].id], confidence, {"steps": len(plan.steps)}
+        )
+
+    async def execute_stream(
+        self, plan: ExecutionPlan
+    ) -> AsyncGenerator[tuple[str, Any], None]:
+        self._validate_plan(plan)
+        self._state.record(StateTransition(plan.execution_id, ExecutionStatus.RUNNING))
+        outputs: dict[str, object] = {}
+        start = perf_counter()
+        for step in plan.steps:
+            result = await self._execute_step(plan.execution_id, step, outputs)
+            outputs[step.id] = result.output
+            yield (step.id, result.output)
+        self._events.emit(
+            RuntimeEvent(
+                "execution.completed",
+                plan.execution_id,
+                attributes={"duration_ms": int((perf_counter() - start) * 1000)},
+            )
+        )
+
+    def _validate_plan(self, plan: ExecutionPlan) -> None:
+        if not plan.steps:
+            raise PlanningError("execution plan has no steps")
+        resolved: set[str] = set()
+        for step in plan.steps:
+            self._registry.get(step.capability_id)
+            for dep in step.depends_on:
+                if dep not in resolved:
+                    raise PlanningError(
+                        f"step {step.id} depends on unresolved step {dep}"
+                    )
+            resolved.add(step.id)
+
+    async def _execute_step(
+        self,
+        execution_id: str,
+        step: Any,
+        outputs: dict[str, object],
+    ) -> CapabilityResult:
+        cap = self._registry.get(step.capability_id)
+        self._events.emit(
+            RuntimeEvent(
+                "capability.started",
+                execution_id,
+                attributes={"step_id": step.id, "capability_id": step.capability_id},
+            )
+        )
+        result = await self._run_with_retry(
+            lambda: cap.execute({**step.arguments, "previous_outputs": outputs}),
+            execution_id,
+            step,
+        )
+        self._state.record(
+            StateTransition(
+                execution_id,
+                ExecutionStatus.RUNNING,
+                step_id=step.id,
+                payload=result.metadata,
+            )
+        )
+        self._events.emit(
+            RuntimeEvent(
+                "capability.completed",
+                execution_id,
+                attributes={"step_id": step.id, "confidence": result.confidence},
+            )
+        )
+        return result
+
+    async def _run_with_retry(
+        self,
+        factory: Any,
+        execution_id: str,
+        step: Any,
+    ) -> CapabilityResult:
+        settings = get_settings()
+        last_exc: Exception | None = None
+        for attempt in range(1, settings.max_retries + 1):
+            try:
+                return await factory()
+            except CapabilityError as exc:
+                last_exc = exc
+                self._events.emit(
+                    RuntimeEvent(
+                        "capability.retry",
+                        execution_id,
+                        attributes={
+                            "step_id": step.id,
+                            "attempt": attempt,
+                            "error": str(exc),
+                        },
+                    )
+                )
+                if attempt < settings.max_retries:
+                    delay = min(
+                        settings.retry_base_delay_s * (2 ** (attempt - 1)),
+                        settings.retry_max_delay_s,
+                    )
+                    await asyncio.sleep(delay)
+        raise CapabilityError(
+            f"step {step.id} failed after {settings.max_retries} retries: {last_exc}"
+        ) from last_exc

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
+import os
 from collections.abc import Sequence
 from dataclasses import asdict, is_dataclass
 from typing import Any
@@ -47,6 +49,26 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_serve_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="anviksha serve",
+        description="Serve Anviksha as a self-hosted FastAPI application.",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="Bind host.")
+    parser.add_argument("--port", type=int, default=8000, help="Bind port.")
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable uvicorn reload for local development.",
+    )
+    parser.add_argument(
+        "--with-llm",
+        action="store_true",
+        help="Register the configured OpenAI-compatible LLM capability.",
+    )
+    return parser
+
+
 def _json_default(value: Any) -> Any:
     if hasattr(value, "value"):
         return value.value
@@ -56,8 +78,12 @@ def _json_default(value: Any) -> Any:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    args_list = list(argv) if argv is not None else None
+    if args_list and args_list[0] == "serve":
+        return _serve(args_list[1:])
+
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(args_list)
     goal = " ".join(args.goal).strip()
     constraints = ExecutionConstraints(
         min_confidence=args.min_confidence,
@@ -84,6 +110,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(payload, default=_json_default, indent=2, sort_keys=True))
     else:
         print(response.output)
+    return 0
+
+
+def _serve(argv: Sequence[str]) -> int:
+    parser = _build_serve_parser()
+    args = parser.parse_args(argv)
+    if importlib.util.find_spec("uvicorn") is None:
+        parser.exit(2, "anviksha serve: install server extras with: pip install anviksha[server]\n")
+    if args.with_llm:
+        # Instantiate once so LLM configuration errors are reported before uvicorn starts.
+        Runtime(config=RuntimeConfig(register_llm=True))
+        os.environ["ANVIKSHA_SERVER_REGISTER_LLM"] = "true"
+    import uvicorn
+
+    uvicorn.run(
+        "anviksha.server.app:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
     return 0
 
 

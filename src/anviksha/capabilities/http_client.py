@@ -44,7 +44,8 @@ class HTTPCapability:
                 )
         except httpx.HTTPStatusError as exc:
             raise CapabilityError(
-                f"HTTP {exc.response.status_code} for {url}: {exc.response.text[:500]}"
+                f"HTTP request failed with status {exc.response.status_code} for {url}: "
+                f"{exc.response.text[:500]}"
             ) from exc
         except httpx.RequestError as exc:
             raise CapabilityError(f"HTTP request to {url} failed: {exc}") from exc

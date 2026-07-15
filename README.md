@@ -104,6 +104,40 @@ Application
 
 ---
 
+## Command Line
+
+Install the package and run deterministic/offline tasks directly from a terminal:
+
+```bash
+anviksha "2 + 3 * 4"
+anviksha --json "2 + 2"
+anviksha --offline-only --min-confidence 0.9 "2 ** 10"
+```
+
+LLM-backed general, QA, summarization, translation, classification, and creative tasks are explicit:
+
+```bash
+export ANVIKSHA_LLM_API_BASE=https://api.openai.com/v1
+export ANVIKSHA_LLM_API_KEY=...
+export ANVIKSHA_LLM_MODEL=...
+anviksha --with-llm "summarize this release note"
+```
+
+---
+
+## Production Readiness: What To Build Next
+
+The current runtime has a solid deterministic execution core, capability registry, policy checks, state timeline, persistence, plugins, and observability events. To make production AI backends smoother for application teams, the next implementation priorities are:
+
+1. **Hosted runtime gateway** — expose the SDK through a FastAPI/ASGI service with auth, request IDs, streaming responses, rate limits, and OpenAPI docs.
+2. **Capability marketplace and version pinning** — package reusable capabilities with semantic versions, health checks, signed metadata, and compatibility checks.
+3. **Production policy packs** — add configurable policies for PII redaction, prompt-injection checks, cost budgets, tenant isolation, tool allowlists, and human approval gates.
+4. **Durable async jobs** — add queue-backed execution for long-running plans, resumable state, cancellation, and result retrieval by execution ID.
+5. **Evaluation and regression harness** — ship fixtures for quality, latency, cost, and safety evaluations before deployment.
+6. **Operational dashboard** — turn runtime events and state into traces, metrics, alerts, replay, and per-capability performance reports.
+
+---
+
 ## Configuration
 
 | Variable | Default | Description |
@@ -135,7 +169,7 @@ p50 latency                     0.13ms
 
 ## Testing
 
-96 tests (49 original + 47 new Phase 2) — unit, integration, concurrency, property-based.
+The test suite covers unit, integration, concurrency, property-based, and CLI behavior.
 
 ```bash
 pip install -e ".[dev]"

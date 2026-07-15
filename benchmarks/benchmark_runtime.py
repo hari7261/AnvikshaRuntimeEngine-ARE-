@@ -62,22 +62,22 @@ def benchmark_parallel_scaling(
     concurrency_levels: tuple[int, ...] = (1, 5, 10, 25, 50),
 ) -> list[dict[str, float]]:
     results: list[dict[str, float]] = []
+    async def run_batch(runtime: Runtime, concurrency: int) -> float:
+        start = time.perf_counter()
+        sem = asyncio.Semaphore(concurrency)
+
+        async def limited(n: int) -> Any:
+            async with sem:
+                return await runtime.aexecute(f"{n} * {n}")
+
+        tasks = [limited(i) for i in range(100)]
+        await asyncio.gather(*tasks)
+        return time.perf_counter() - start
+
     for concurrency in concurrency_levels:
         r = _make_runtime()
 
-        async def run_batch() -> float:
-            start = time.perf_counter()
-            sem = asyncio.Semaphore(concurrency)
-
-            async def limited(n: int) -> Any:
-                async with sem:
-                    return await r.aexecute(f"{n} * {n}")
-
-            tasks = [limited(i) for i in range(100)]
-            await asyncio.gather(*tasks)
-            return time.perf_counter() - start
-
-        elapsed = asyncio.run(run_batch())
+        elapsed = asyncio.run(run_batch(r, concurrency))
         results.append({
             "type": "parallel_scaling",
             "concurrency": concurrency,

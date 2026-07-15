@@ -5,7 +5,7 @@
 ### Highlights
 - **True parallel execution** — Independent plan steps now execute concurrently via `asyncio.gather` instead of sequential await. Verified: 3×200ms steps complete in <400ms (vs 600ms sequential).
 - **PyPI published** as `anviksha` — first production package at https://pypi.org/project/anviksha/
-- **CI/CD green across the board** — ruff linting, mypy strict typing, 97 tests, mkdocs build, docs deploy
+- **CI/CD green across the board** — ruff linting, mypy strict typing, the full test suite, mkdocs build, docs deploy
 - **GitHub Pages docs** — auto-deploys on push
 
 ### Breaking Changes
@@ -34,7 +34,7 @@
 - **CHANGELOG.md** — full release history
 
 ### Quality
-- 97 tests, 0 failures, 0 warnings (was 49 in v1.0)
+- Full suite passing with 0 failures and 0 warnings (was 49 tests in v1.0)
 - 85% coverage (source-only, excludes env-dependent paths like LLM)
 - Property-based tests via Hypothesis (calculator properties, registry round-trips, constraints immutability)
 - Concurrency tests (high-concurrency no-deadlock, burst-then-steady, parallel proof)
@@ -86,7 +86,7 @@ First production release on PyPI.
 - Plugin SDK with entry-point auto-discovery
 
 ### Quality
-- 96 tests, 0 failures, 0 warnings
+- Full suite passing with 0 failures and 0 warnings
 - 85% coverage (source only, excludes env-dependent paths)
 - Property-based tests (Hypothesis)
 - Concurrency and stress tests

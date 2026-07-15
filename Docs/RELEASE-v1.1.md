@@ -11,7 +11,7 @@
 
 v1.1.0 is the first full production release of the Anviksha Runtime Engine on PyPI. It delivers 6 new capabilities, true parallel execution, comprehensive CI/CD, performance benchmarks, and a full documentation site.
 
-The runtime grew from 49 to 97 tests (all passing), from 0 to 2 CI workflows (all green), and from a single test file to a structured test suite covering unit, integration, concurrency, and property-based testing.
+The runtime expanded beyond the original 49-test baseline, with the full suite passing, from 0 to 2 CI workflows (all green), and from a single test file to a structured test suite covering unit, integration, concurrency, and property-based testing.
 
 ---
 
@@ -45,7 +45,7 @@ Two GitHub Actions workflows ensure code quality:
 **CI (`ci.yml`):**
 - `ruff check` — linting (E, F, W, I, N, UP, B, SIM)
 - `mypy src/anviksha/` — strict type checking (31 files, 0 errors)
-- `pytest tests/ --cov` — 97 tests, coverage reporting
+- `pytest tests/ --cov` — the full test suite, coverage reporting
 - `mkdocs build --strict` — documentation build
 - `python -m build` + PyPI publish (on tags)
 
@@ -152,7 +152,7 @@ tests/test_concurrency.py ......                       (6 tests)
 tests/test_property.py .......                         (7 tests)
 tests/test_runtime.py ................................. (49 tests)
 ────────────────────────────────────────────────────────────────
-Total: 97 passed in 8-16s
+Total: Full suite passed in 8-16s
 ```
 
 ### Coverage

@@ -8,6 +8,7 @@ import os
 from collections import defaultdict, deque
 from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 from time import monotonic, time
 from typing import Any, cast
 from uuid import uuid4
@@ -18,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response as StarletteResponse
 
+from anviksha.evaluation import EvaluationCase, run_evaluation
 from anviksha.exceptions import AnvikshaError, CapabilityError, PlanningError, PolicyViolationError
 from anviksha.sdk.runtime import Runtime, RuntimeConfig
 from anviksha.types import ExecutionConstraints, RuntimeResponse
@@ -43,6 +45,7 @@ class ServerMetrics:
 @dataclass(slots=True)
 class PlatformState:
     runtime: Runtime
+    job_store_path: Path | None = None
     metrics: ServerMetrics = field(default_factory=ServerMetrics)
     idempotency: dict[str, RuntimeResponsePayload] = field(default_factory=dict)
     jobs: dict[str, JobPayload] = field(default_factory=dict)
@@ -232,8 +235,10 @@ def create_app(
         summary="Self-hostable adaptive AI execution runtime.",
     )
     app.state.platform = PlatformState(
-        runtime=runtime or Runtime(config=config or _config_from_env())
+        runtime=runtime or Runtime(config=config or _config_from_env()),
+        job_store_path=_job_store_path_from_env(),
     )
+    _load_jobs(app.state.platform)
     app.add_middleware(RuntimeMiddleware)
 
     @app.get("/healthz", response_model=HealthPayload, tags=["system"])
@@ -253,6 +258,18 @@ def create_app(
     async def metrics(request: Request) -> str:
         state = _platform(request.app)
         return _metrics_text(state)
+
+    @app.get("/dashboard", response_class=PlainTextResponse, tags=["system"])
+    async def dashboard(request: Request) -> str:
+        state = _platform(request.app)
+        return (
+            "Anviksha Runtime Dashboard\n"
+            f"requests={state.metrics.requests_total}\n"
+            f"executions={state.metrics.executions_total}\n"
+            f"jobs={len(state.jobs)}\n"
+            f"sessions={len(state.sessions)}\n"
+            f"capabilities={len(state.runtime.registry.all())}\n"
+        )
 
     @app.get("/capabilities", response_model=list[CapabilityPayload], tags=["runtime"])
     async def capabilities(request: Request) -> list[CapabilityPayload]:
@@ -339,6 +356,33 @@ def create_app(
 
         return StreamingResponse(events(), media_type="application/x-ndjson")
 
+    @app.post("/evaluations/smoke", tags=["evaluations"])
+    async def smoke_evaluation(request: Request) -> dict[str, Any]:
+        state = _platform(request.app)
+        report = await run_evaluation(
+            state.runtime,
+            (
+                EvaluationCase("calculator", "2 + 3 * 4", 14.0),
+                EvaluationCase("python", "evaluate sum(range(5))", 10),
+            ),
+        )
+        return {
+            "total": report.total,
+            "passed": report.passed,
+            "failed": report.failed,
+            "results": [
+                {
+                    "name": result.name,
+                    "passed": result.passed,
+                    "output": result.output,
+                    "expected_output": result.expected_output,
+                    "diagnostics": list(result.diagnostics),
+                    "error": result.error,
+                }
+                for result in report.results
+            ],
+        }
+
     @app.post("/jobs", response_model=JobAcceptedPayload, status_code=202, tags=["jobs"])
     async def create_job(
         payload: ExecutePayload,
@@ -363,6 +407,7 @@ def create_app(
         state.jobs[job_id] = job
         state.metrics.jobs_total += 1
         _record_session(state, context, job_id=job_id)
+        _persist_jobs(state)
         asyncio.create_task(_run_job(state, job_id, payload, context))
         return JobAcceptedPayload(
             job_id=job_id,
@@ -392,6 +437,7 @@ def create_app(
         if job.status in {"queued", "running"}:
             job = job.model_copy(update={"status": "canceled", "updated_at": time()})
             state.jobs[job_id] = job
+            _persist_jobs(state)
         return job
 
     @app.get("/sessions/{session_id}", response_model=SessionPayload, tags=["sessions"])
@@ -413,6 +459,7 @@ async def _run_job(
 ) -> None:
     job = state.jobs[job_id].model_copy(update={"status": "running", "updated_at": time()})
     state.jobs[job_id] = job
+    _persist_jobs(state)
     try:
         runtime_response = await state.runtime.aexecute(
             payload.goal,
@@ -430,11 +477,13 @@ async def _run_job(
             }
         )
         _record_session(state, context, execution_id=response.execution_id)
+        _persist_jobs(state)
     except AnvikshaError as exc:
         state.metrics.errors_total += 1
         state.jobs[job_id] = job.model_copy(
             update={"status": "failed", "error": str(exc), "updated_at": time()}
         )
+        _persist_jobs(state)
 
 
 def _auth_error(request: Request) -> StarletteResponse | None:
@@ -463,6 +512,11 @@ def _rate_limit_error(request: Request, state: PlatformState) -> StarletteRespon
         return PlainTextResponse("rate limit exceeded", status_code=429)
     window.append(now)
     return None
+
+
+def _job_store_path_from_env() -> Path | None:
+    value = os.getenv("ANVIKSHA_SERVER_JOB_STORE_PATH", "").strip()
+    return Path(value) if value else None
 
 
 def _config_from_env() -> RuntimeConfig:
@@ -528,6 +582,7 @@ def _record_session(
     state.sessions[context.session_id] = session.model_copy(
         update={"execution_ids": execution_ids, "job_ids": job_ids, "updated_at": time()}
     )
+    _persist_jobs(state)
 
 
 def _response_payload(response: RuntimeResponse, context: RequestContext) -> RuntimeResponsePayload:
@@ -561,6 +616,37 @@ def _metrics_text(state: PlatformState) -> str:
         "anviksha_uptime_seconds": int(time() - state.metrics.started_at),
     }
     return "\n".join(f"{key} {value}" for key, value in lines.items()) + "\n"
+
+
+def _persist_jobs(state: PlatformState) -> None:
+    if state.job_store_path is None:
+        return
+    payload = {
+        "jobs": [job.model_dump(mode="json") for job in state.jobs.values()],
+        "sessions": [session.model_dump(mode="json") for session in state.sessions.values()],
+    }
+    state.job_store_path.parent.mkdir(parents=True, exist_ok=True)
+    state.job_store_path.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
+
+
+def _load_jobs(state: PlatformState) -> None:
+    if state.job_store_path is None or not state.job_store_path.exists():
+        return
+    payload = json.loads(state.job_store_path.read_text(encoding="utf-8"))
+    for item in payload.get("jobs", []):
+        job = JobPayload.model_validate(item)
+        if job.status in {"queued", "running"}:
+            job = job.model_copy(
+                update={
+                    "status": "failed",
+                    "error": "server restarted before job completed",
+                    "updated_at": time(),
+                }
+            )
+        state.jobs[job.job_id] = job
+    for item in payload.get("sessions", []):
+        session = SessionPayload.model_validate(item)
+        state.sessions[session.session_id] = session
 
 
 app = create_app()

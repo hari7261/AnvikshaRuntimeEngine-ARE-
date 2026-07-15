@@ -22,7 +22,7 @@ from anviksha.observability.events import InMemoryEventSink, RuntimeEvent
 from anviksha.planner.default import RuleBasedPlanner
 from anviksha.plugins.discovery import discover_capabilities
 from anviksha.plugins.sdk import Plugin
-from anviksha.policy.engine import MinimumConfidencePolicy, PolicyEngine
+from anviksha.policy.engine import PolicyEngine, production_policy_pack
 from anviksha.state.manager import StateManager, StateTransition
 from anviksha.state.persistence import PersistentStateManager
 from anviksha.types import (
@@ -109,7 +109,7 @@ class Runtime:
 
         self.events = InMemoryEventSink()
         self.planner = RuleBasedPlanner(self.registry)
-        self.policies = PolicyEngine((MinimumConfidencePolicy(),))
+        self.policies = PolicyEngine(production_policy_pack())
         self.executor = ExecutionEngine(self.registry, self.state, self.events)
 
     def execute(

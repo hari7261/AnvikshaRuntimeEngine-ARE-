@@ -151,3 +151,33 @@ def test_server_optional_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert client.get("/healthz").status_code == 200
     assert client.get("/healthz").status_code == 429
+
+
+def test_server_dashboard_smoke_evaluation_and_durable_jobs(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    job_store = tmp_path / "jobs.json"
+    monkeypatch.setenv("ANVIKSHA_SERVER_JOB_STORE_PATH", str(job_store))
+    client = TestClient(create_app())
+
+    dashboard = client.get("/dashboard")
+    assert dashboard.status_code == 200
+    assert "Anviksha Runtime Dashboard" in dashboard.text
+
+    evaluation = client.post("/evaluations/smoke")
+    assert evaluation.status_code == 200
+    assert evaluation.json()["failed"] == 0
+
+    accepted = client.post("/jobs", json={"goal": "2 + 6"})
+    assert accepted.status_code == 202
+    job_id = accepted.json()["job_id"]
+
+    for _ in range(20):
+        job = client.get(f"/jobs/{job_id}").json()
+        if job["status"] in {"succeeded", "failed"}:
+            break
+        time.sleep(0.05)
+
+    assert job_store.exists()
+    reloaded = TestClient(create_app())
+    assert reloaded.get(f"/jobs/{job_id}").json()["status"] == "succeeded"

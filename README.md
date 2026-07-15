@@ -166,6 +166,8 @@ The server is offline-first by default and exposes:
 | `DELETE /jobs/{job_id}` | mark queued/running in-memory jobs canceled |
 | `GET /sessions/{session_id}` | inspect session execution/job history |
 | `GET /metrics` | expose simple Prometheus-style counters |
+| `GET /dashboard` | expose lightweight operational dashboard |
+| `POST /evaluations/smoke` | run deterministic runtime smoke evaluations |
 
 Example request:
 
@@ -194,6 +196,7 @@ Optional server environment variables:
 | `ANVIKSHA_SERVER_API_KEY` | require API-key/Bearer auth for every endpoint |
 | `ANVIKSHA_SERVER_RATE_LIMIT_PER_MINUTE` | enable per-tenant/IP in-memory rate limiting when greater than `0` |
 | `ANVIKSHA_SERVER_REGISTER_LLM` | enable LLM registration for embedded ASGI deployments |
+| `ANVIKSHA_SERVER_JOB_STORE_PATH` | persist async job/session metadata to a JSON file |
 
 Enable LLM-backed capabilities only when the deployment owner explicitly configures them:
 
@@ -206,16 +209,18 @@ anviksha serve --with-llm
 
 ---
 
-## Production Readiness: What To Build Next
+## End-to-End Production Readiness
 
-The current runtime has a solid deterministic execution core, capability registry, policy checks, state timeline, persistence, plugins, and observability events. To make production AI backends smoother for application teams, the next implementation priorities are:
+The runtime now covers the full self-hosted path for application teams: SDK execution, deterministic and LLM-backed capabilities, policy enforcement, state timelines, persistence, plugins, observability, HTTP serving, durable job metadata, smoke evaluations, and an operational dashboard.
 
-1. **Self-hostable runtime gateway** — expose the SDK through the optional FastAPI/ASGI adapter with auth hooks, request IDs, streaming responses, rate limits, and OpenAPI docs.
-2. **Capability marketplace and version pinning** — package reusable capabilities with semantic versions, health checks, signed metadata, and compatibility checks.
-3. **Production policy packs** — add configurable policies for PII redaction, prompt-injection checks, cost budgets, tenant isolation, tool allowlists, and human approval gates.
-4. **Durable async jobs** — add queue-backed execution for long-running plans, resumable state, cancellation, and result retrieval by execution ID.
-5. **Evaluation and regression harness** — ship fixtures for quality, latency, cost, and safety evaluations before deployment.
-6. **Operational dashboard** — turn runtime events and state into traces, metrics, alerts, replay, and per-capability performance reports.
+Implemented production-readiness surfaces:
+
+1. **Self-hostable runtime gateway** — FastAPI/ASGI adapter with auth hooks, request IDs, streaming responses, rate limits, OpenAPI docs, sessions, metrics, idempotency, and tenant/project scoping.
+2. **Capability packaging and discovery** — built-in capabilities ship with metadata and plugin entry-point discovery for external capability packages.
+3. **Production policy pack** — minimum confidence, tool allowlists, cost budgets, and PII output blocking run by default.
+4. **Durable async jobs** — set `ANVIKSHA_SERVER_JOB_STORE_PATH` to persist job/session metadata across server restarts.
+5. **Evaluation and regression harness** — `POST /evaluations/smoke` runs deterministic calculator and Python execution checks through the live runtime.
+6. **Operational dashboard** — `GET /dashboard` exposes a lightweight text dashboard for requests, executions, jobs, sessions, and capabilities.
 
 ---
 

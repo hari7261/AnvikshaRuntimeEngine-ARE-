@@ -32,3 +32,14 @@ def test_cli_returns_usage_error_for_unplannable_goal(capsys) -> None:  # type: 
         raise AssertionError("expected SystemExit")
 
     assert "no capability registered" in capsys.readouterr().err
+
+
+def test_cli_serve_requires_server_extra(capsys) -> None:  # type: ignore[no-untyped-def]
+    try:
+        main(["serve", "--host", "127.0.0.1", "--port", "9999"])
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:  # pragma: no cover
+        raise AssertionError("expected SystemExit")
+
+    assert "pip install anviksha[server]" in capsys.readouterr().err

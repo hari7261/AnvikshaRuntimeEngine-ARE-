@@ -125,11 +125,92 @@ anviksha --with-llm "summarize this release note"
 
 ---
 
+
+## Self-hosted FastAPI Server
+
+Anviksha is designed for GitHub/PyPI distribution: you install the runtime, then host it inside your own app, worker, VM, container, or Kubernetes cluster. The project does not require an Anviksha-managed cloud service.
+
+Install the optional FastAPI adapter:
+
+```bash
+pip install "anviksha[server]"
+```
+
+Run the self-hosted API locally:
+
+```bash
+anviksha serve --host 0.0.0.0 --port 8000
+```
+
+Or embed it in your own ASGI application:
+
+```python
+from anviksha.server import create_app
+
+app = create_app()
+```
+
+Full server documentation lives in `Docs/guide/server.md`.
+
+The server is offline-first by default and exposes:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /healthz` | process health check |
+| `GET /readyz` | runtime readiness and capability count |
+| `GET /capabilities` | registered capability metadata |
+| `POST /execute` | execute one goal and return a structured response |
+| `POST /stream` | stream newline-delimited JSON chunks |
+| `POST /jobs` | enqueue an async self-hosted execution job |
+| `GET /jobs/{job_id}` | inspect job state/result |
+| `DELETE /jobs/{job_id}` | mark queued/running in-memory jobs canceled |
+| `GET /sessions/{session_id}` | inspect session execution/job history |
+| `GET /metrics` | expose simple Prometheus-style counters |
+
+Example request:
+
+```bash
+curl -X POST http://localhost:8000/execute \
+  -H 'content-type: application/json' \
+  -d '{"goal":"2 + 3 * 4","constraints":{"offline_only":true}}'
+```
+
+
+Self-hosted platform headers are supported without adding a managed Anviksha cloud dependency:
+
+| Header | Purpose |
+|---|---|
+| `x-request-id` | caller-provided request correlation ID; generated when absent |
+| `idempotency-key` | caches successful `/execute` responses per tenant/project/session |
+| `x-api-key` or `Authorization: Bearer ...` | optional auth when `ANVIKSHA_SERVER_API_KEY` is set |
+| `x-anviksha-tenant` | tenant scope, defaults to `default` |
+| `x-anviksha-project` | project scope, defaults to `default` |
+| `x-anviksha-session-id` | session scope for `/sessions/{session_id}` history |
+
+Optional server environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `ANVIKSHA_SERVER_API_KEY` | require API-key/Bearer auth for every endpoint |
+| `ANVIKSHA_SERVER_RATE_LIMIT_PER_MINUTE` | enable per-tenant/IP in-memory rate limiting when greater than `0` |
+| `ANVIKSHA_SERVER_REGISTER_LLM` | enable LLM registration for embedded ASGI deployments |
+
+Enable LLM-backed capabilities only when the deployment owner explicitly configures them:
+
+```bash
+export ANVIKSHA_LLM_API_BASE=https://api.openai.com/v1
+export ANVIKSHA_LLM_API_KEY=...
+export ANVIKSHA_LLM_MODEL=...
+anviksha serve --with-llm
+```
+
+---
+
 ## Production Readiness: What To Build Next
 
 The current runtime has a solid deterministic execution core, capability registry, policy checks, state timeline, persistence, plugins, and observability events. To make production AI backends smoother for application teams, the next implementation priorities are:
 
-1. **Hosted runtime gateway** — expose the SDK through a FastAPI/ASGI service with auth, request IDs, streaming responses, rate limits, and OpenAPI docs.
+1. **Self-hostable runtime gateway** — expose the SDK through the optional FastAPI/ASGI adapter with auth hooks, request IDs, streaming responses, rate limits, and OpenAPI docs.
 2. **Capability marketplace and version pinning** — package reusable capabilities with semantic versions, health checks, signed metadata, and compatibility checks.
 3. **Production policy packs** — add configurable policies for PII redaction, prompt-injection checks, cost budgets, tenant isolation, tool allowlists, and human approval gates.
 4. **Durable async jobs** — add queue-backed execution for long-running plans, resumable state, cancellation, and result retrieval by execution ID.

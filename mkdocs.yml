@@ -32,9 +32,11 @@ nav:
   - Home: index.md
   - Guide:
     - Quickstart: guide/quickstart.md
+    - Self-hosted FastAPI Server: guide/server.md
     - Configuration: guide/configuration.md
   - API Reference:
     - Runtime SDK: api/runtime.md
+    - Server Adapter: api/server.md
     - Capabilities: api/capabilities.md
     - Types: api/types.md
     - Exceptions: api/exceptions.md

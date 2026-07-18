@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from collections import defaultdict, deque
 from collections.abc import AsyncGenerator, Mapping
@@ -30,6 +31,8 @@ IDEMPOTENCY_KEY_HEADER = "idempotency-key"
 TENANT_HEADER = "x-anviksha-tenant"
 PROJECT_HEADER = "x-anviksha-project"
 SESSION_HEADER = "x-anviksha-session-id"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -350,8 +353,13 @@ def create_app(
                 yield json.dumps({"type": "completed", "request_id": context.request_id}) + "\n"
             except AnvikshaError as exc:
                 state.metrics.errors_total += 1
+                logger.exception("Streaming execution failed for request_id=%s", context.request_id)
                 yield json.dumps(
-                    {"type": "error", "request_id": context.request_id, "error": str(exc)}
+                    {
+                        "type": "error",
+                        "request_id": context.request_id,
+                        "error": "An internal error has occurred.",
+                    }
                 ) + "\n"
 
         return StreamingResponse(events(), media_type="application/x-ndjson")
